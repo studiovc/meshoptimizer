@@ -818,7 +818,7 @@ void processDeinterleaved(const char* path)
 
 	double start = timestamp();
 
-	meshopt_Stream streams[] = {
+	meshopt_Stream unindexed_streams[] = {
 	    {&unindexed_pos[0], sizeof(float) * 3, sizeof(float) * 3},
 	    {&unindexed_nrm[0], sizeof(float) * 3, sizeof(float) * 3},
 	    {&unindexed_uv[0], sizeof(float) * 2, sizeof(float) * 2},
@@ -826,7 +826,7 @@ void processDeinterleaved(const char* path)
 
 	std::vector<unsigned int> remap(total_indices);
 
-	size_t total_vertices = meshopt_generateVertexRemapMulti(&remap[0], NULL, total_indices, total_indices, streams, sizeof(streams) / sizeof(streams[0]));
+	size_t total_vertices = meshopt_generateVertexRemapMulti(&remap[0], NULL, total_indices, total_indices, unindexed_streams, sizeof(unindexed_streams) / sizeof(unindexed_streams[0]));
 
 	std::vector<unsigned int> indices(total_indices);
 	meshopt_remapIndexBuffer(&indices[0], NULL, total_indices, &remap[0]);
@@ -842,12 +842,26 @@ void processDeinterleaved(const char* path)
 
 	double reindex = timestamp();
 
-	meshopt_optimizeVertexCache(&indices[0], &indices[0], total_indices, total_vertices);
+	meshopt_optimizeVertexCacheFifo(&indices[0], &indices[0], total_indices, total_vertices, 16);
 
-	meshopt_optimizeVertexFetchRemap(&remap[0], &indices[0], total_indices, total_vertices);
-	meshopt_remapVertexBuffer(&pos[0], &pos[0], total_vertices, sizeof(float) * 3, &remap[0]);
-	meshopt_remapVertexBuffer(&nrm[0], &nrm[0], total_vertices, sizeof(float) * 3, &remap[0]);
-	meshopt_remapVertexBuffer(&uv[0], &uv[0], total_vertices, sizeof(float) * 2, &remap[0]);
+	if (1)
+	{
+		meshopt_optimizeVertexFetchRemap(&remap[0], &indices[0], total_indices, total_vertices);
+		meshopt_remapVertexBuffer(&pos[0], &pos[0], total_vertices, sizeof(float) * 3, &remap[0]);
+		meshopt_remapVertexBuffer(&nrm[0], &nrm[0], total_vertices, sizeof(float) * 3, &remap[0]);
+		meshopt_remapVertexBuffer(&uv[0], &uv[0], total_vertices, sizeof(float) * 2, &remap[0]);
+	}
+	else
+	{
+		meshopt_Stream streams[] = {
+			{&pos[0], sizeof(float) * 3, sizeof(float) * 3},
+			{&nrm[0], sizeof(float) * 3, sizeof(float) * 3},
+			{&uv[0], sizeof(float) * 2, sizeof(float) * 2},
+		};
+
+		meshopt_optimizeVertexFetchInplaceMulti(&indices[0], total_indices, total_vertices, streams, sizeof(streams) / sizeof(streams[0]));
+	}
+
 
 	double optimize = timestamp();
 
@@ -903,12 +917,29 @@ void process(const char* path)
 
 void processDev(const char* path)
 {
+	processDeinterleaved(path);
+	return;
+
 	Mesh mesh;
 	if (!loadMesh(mesh, path))
 		return;
 
-	simplify(mesh, 0.01f);
-	simplifySloppy(mesh, 0.01f);
+	double start = timestamp();
+	meshopt_optimizeVertexCacheFifo(&mesh.indices[0], &mesh.indices[0], mesh.indices.size(), mesh.vertices.size(), 16);
+	double middle = timestamp();
+
+	if (1)
+	{
+		meshopt_optimizeVertexFetch(&mesh.vertices[0], &mesh.indices[0], mesh.indices.size(), &mesh.vertices[0], mesh.vertices.size(), sizeof(Vertex));
+	}
+	else
+	{
+		meshopt_optimizeVertexFetchInplace(&mesh.indices[0], mesh.indices.size(), &mesh.vertices[0], mesh.vertices.size(), sizeof(Vertex));
+	}
+
+	double end = timestamp();
+
+	printf("cache %.2f ms, fetch %.2f ms (hash %08x)\n", (middle - start) * 1000, (end - middle) * 1000, unsigned(hashRange((const char*)&mesh.vertices[0], mesh.vertices.size() * sizeof(Vertex))));
 }
 
 int main(int argc, char** argv)
