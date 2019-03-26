@@ -147,6 +147,14 @@ MESHOPTIMIZER_API size_t meshopt_optimizeVertexFetch(void* destination, unsigned
 MESHOPTIMIZER_API size_t meshopt_optimizeVertexFetchRemap(unsigned int* destination, const unsigned int* indices, size_t index_count, size_t vertex_count);
 
 /**
+ * (Experimental) In-place vertex fetch cache optimizer
+ * Uses minimal amount of temporary memory to optimize the vertex order for vertex fetch, changing both indices and vertices
+ * Returns the number of unique vertices, which is the same as input vertex count unless some vertices are unused
+ */
+MESHOPTIMIZER_EXPERIMENTAL size_t meshopt_optimizeVertexFetchInplace(unsigned int* indices, size_t index_count, void* vertices, size_t vertex_count, size_t vertex_size);
+MESHOPTIMIZER_EXPERIMENTAL size_t meshopt_optimizeVertexFetchInplaceMulti(unsigned int* indices, size_t index_count, size_t vertex_count, const struct meshopt_Stream* streams, size_t stream_count);
+
+/**
  * Index buffer encoder
  * Encodes index data into an array of bytes that is generally much smaller (<1.5 bytes/triangle) and compresses better (<1 bytes/triangle) compared to original.
  * Returns encoded data size on success, 0 on error; the only error condition is if buffer doesn't have enough space
@@ -524,6 +532,22 @@ inline size_t meshopt_optimizeVertexFetch(void* destination, T* indices, size_t 
 	meshopt_IndexAdapter<T> inout(indices, indices, index_count);
 
 	return meshopt_optimizeVertexFetch(destination, inout.data, index_count, vertices, vertex_count, vertex_size);
+}
+
+template <typename T>
+inline size_t meshopt_optimizeVertexFetchInplace(T* indices, size_t index_count, void* vertices, size_t vertex_count, size_t vertex_size)
+{
+	meshopt_IndexAdapter<T> inout(indices, indices, index_count);
+
+	return meshopt_optimizeVertexFetchInplace(inout.data, index_count, vertices, vertex_count, vertex_size);
+}
+
+template <typename T>
+inline size_t meshopt_optimizeVertexFetchInplaceMulti(T* indices, size_t index_count, size_t vertex_count, const meshopt_Stream* streams, size_t stream_count)
+{
+	meshopt_IndexAdapter<T> inout(indices, indices, index_count);
+
+	return meshopt_optimizeVertexFetchInplaceMulti(inout.data, index_count, vertex_count, streams, stream_count);
 }
 
 template <typename T>
