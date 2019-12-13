@@ -181,8 +181,33 @@ cgltf_data* parseGltf(const char* path, std::vector<Mesh>& meshes, std::vector<A
 
 bool compareMeshTargets(const Mesh& lhs, const Mesh& rhs);
 
+void analyzeImages(cgltf_data* data, std::vector<ImageInfo>& images);
+
+void mergeMeshMaterials(cgltf_data* data, std::vector<Mesh>& meshes);
 void mergeMeshes(std::vector<Mesh>& meshes, const Settings& settings);
+
 void filterEmptyMeshes(std::vector<Mesh>& meshes);
 
+void transformMesh(Mesh& mesh, const cgltf_node* node);
 void processMesh(Mesh& mesh, const Settings& settings);
+
 void processAnimation(Animation& animation, const Settings& settings);
+
+std::string getFullPath(const char* path, const char* base_path);
+std::string getFileName(const char* path);
+bool readFile(const char* path, std::string& data);
+bool writeFile(const char* path, const std::string& data);
+
+struct TempFile
+{
+	std::string path;
+	int fd;
+
+	TempFile(const char* suffix);
+	~TempFile();
+};
+
+std::string inferMimeType(const char* path);
+std::string basisToKtx(const std::string& basis, bool srgb);
+bool checkBasis();
+bool encodeBasis(const std::string& data, std::string& result, bool normal_map, bool srgb, int quality);

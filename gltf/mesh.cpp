@@ -1,11 +1,59 @@
 // This file is part of gltfpack; see gltfpack.h for version/license details
 #include "gltfpack.h"
 
+#include <math.h>
 #include <string.h>
 
 #include <algorithm>
 
 #include "../src/meshoptimizer.h"
+
+static void transformPosition(float* ptr, const float* transform)
+{
+	float x = ptr[0] * transform[0] + ptr[1] * transform[4] + ptr[2] * transform[8] + transform[12];
+	float y = ptr[0] * transform[1] + ptr[1] * transform[5] + ptr[2] * transform[9] + transform[13];
+	float z = ptr[0] * transform[2] + ptr[1] * transform[6] + ptr[2] * transform[10] + transform[14];
+
+	ptr[0] = x;
+	ptr[1] = y;
+	ptr[2] = z;
+}
+
+static void transformNormal(float* ptr, const float* transform)
+{
+	float x = ptr[0] * transform[0] + ptr[1] * transform[4] + ptr[2] * transform[8];
+	float y = ptr[0] * transform[1] + ptr[1] * transform[5] + ptr[2] * transform[9];
+	float z = ptr[0] * transform[2] + ptr[1] * transform[6] + ptr[2] * transform[10];
+
+	float l = sqrtf(x * x + y * y + z * z);
+	float s = (l == 0.f) ? 0.f : 1 / l;
+
+	ptr[0] = x * s;
+	ptr[1] = y * s;
+	ptr[2] = z * s;
+}
+
+void transformMesh(Mesh& mesh, const cgltf_node* node)
+{
+	float transform[16];
+	cgltf_node_transform_world(node, transform);
+
+	for (size_t si = 0; si < mesh.streams.size(); ++si)
+	{
+		Stream& stream = mesh.streams[si];
+
+		if (stream.type == cgltf_attribute_type_position)
+		{
+			for (size_t i = 0; i < stream.data.size(); ++i)
+				transformPosition(stream.data[i].f, transform);
+		}
+		else if (stream.type == cgltf_attribute_type_normal || stream.type == cgltf_attribute_type_tangent)
+		{
+			for (size_t i = 0; i < stream.data.size(); ++i)
+				transformNormal(stream.data[i].f, transform);
+		}
+	}
+}
 
 bool compareMeshTargets(const Mesh& lhs, const Mesh& rhs)
 {
