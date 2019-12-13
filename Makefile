@@ -12,7 +12,7 @@ LIBRARY_OBJECTS=$(LIBRARY_SOURCES:%=$(BUILD)/%.o)
 DEMO_SOURCES=$(wildcard demo/*.c demo/*.cpp) tools/meshloader.cpp
 DEMO_OBJECTS=$(DEMO_SOURCES:%=$(BUILD)/%.o)
 
-GLTFPACK_SOURCES=tools/gltfpack.cpp tools/meshloader.cpp tools/basistoktx.cpp
+GLTFPACK_SOURCES=$(wildcard gltf/*.cpp) tools/meshloader.cpp
 GLTFPACK_OBJECTS=$(GLTFPACK_SOURCES:%=$(BUILD)/%.o)
 
 OBJECTS=$(LIBRARY_OBJECTS) $(DEMO_OBJECTS) $(GLTFPACK_OBJECTS)
@@ -71,7 +71,9 @@ dev: $(EXECUTABLE)
 format:
 	clang-format -i $(LIBRARY_SOURCES) $(DEMO_SOURCES) $(GLTFPACK_SOURCES)
 
-gltfpack: $(GLTFPACK_OBJECTS) $(LIBRARY)
+gltfpack: $(BUILD)/gltfpack
+
+$(BUILD)/gltfpack: $(GLTFPACK_OBJECTS) $(LIBRARY)
 	$(CXX) $^ $(LDFLAGS) -o $@
 
 build/decoder_base.wasm: $(WASM_SOURCES)
@@ -105,4 +107,4 @@ $(BUILD)/%.c.o: %.c
 clean:
 	rm -rf $(BUILD)
 
-.PHONY: all clean format
+.PHONY: all clean format gltfpack
