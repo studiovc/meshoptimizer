@@ -29,6 +29,14 @@ set(SOURCES
     src/vfetchoptimizer.cpp
 )
 
+set(GLTF_SOURCES
+    gltf/gltfpack.h
+    gltf/animation.cpp 
+    gltf/basistoktx.cpp
+    gltf/gltfpack.cpp
+    gltf/mesh.cpp
+)
+
 if(MSVC)
     add_compile_options(/W4 /WX)
 else()
@@ -58,7 +66,7 @@ if(BUILD_DEMO)
 endif()
 
 if(BUILD_TOOLS)
-    add_executable(gltfpack gltf/gltfpack.cpp gltf/basistoktx.cpp tools/meshloader.cpp)
+    add_executable(gltfpack ${GLTF_SOURCES} tools/meshloader.cpp)
     target_link_libraries(gltfpack meshoptimizer)
     list(APPEND TARGETS gltfpack)
 
