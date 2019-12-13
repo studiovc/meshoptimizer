@@ -38,8 +38,10 @@ set(GLTF_SOURCES
     gltf/image.cpp
     gltf/material.cpp
     gltf/mesh.cpp
+    gltf/node.cpp
     gltf/parsegltf.cpp
     gltf/parseobj.cpp
+    gltf/stream.cpp
 )
 
 if(MSVC)

@@ -134,3 +134,19 @@ void mergeMeshMaterials(cgltf_data* data, std::vector<Mesh>& meshes)
 		}
 	}
 }
+
+void markNeededMaterials(cgltf_data* data, std::vector<MaterialInfo>& materials, const std::vector<Mesh>& meshes)
+{
+	// mark all used materials as kept
+	for (size_t i = 0; i < meshes.size(); ++i)
+	{
+		const Mesh& mesh = meshes[i];
+
+		if (mesh.material)
+		{
+			MaterialInfo& mi = materials[mesh.material - data->materials];
+
+			mi.keep = true;
+		}
+	}
+}

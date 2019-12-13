@@ -184,8 +184,13 @@ bool compareMeshTargets(const Mesh& lhs, const Mesh& rhs);
 void analyzeImages(cgltf_data* data, std::vector<ImageInfo>& images);
 
 void mergeMeshMaterials(cgltf_data* data, std::vector<Mesh>& meshes);
-void mergeMeshes(std::vector<Mesh>& meshes, const Settings& settings);
+void markNeededMaterials(cgltf_data* data, std::vector<MaterialInfo>& materials, const std::vector<Mesh>& meshes);
 
+void markAnimated(cgltf_data* data, std::vector<NodeInfo>& nodes, const std::vector<Animation>& animations);
+void markNeededNodes(cgltf_data* data, std::vector<NodeInfo>& nodes, const std::vector<Mesh>& meshes, const std::vector<Animation>& animations, const Settings& settings);
+void remapNodes(cgltf_data* data, std::vector<NodeInfo>& nodes, size_t& node_offset);
+
+void mergeMeshes(std::vector<Mesh>& meshes, const Settings& settings);
 void filterEmptyMeshes(std::vector<Mesh>& meshes);
 
 void transformMesh(Mesh& mesh, const cgltf_node* node);
@@ -211,3 +216,14 @@ std::string inferMimeType(const char* path);
 std::string basisToKtx(const std::string& basis, bool srgb);
 bool checkBasis();
 bool encodeBasis(const std::string& data, std::string& result, bool normal_map, bool srgb, int quality);
+
+QuantizationParams prepareQuantization(const std::vector<Mesh>& meshes, const Settings& settings);
+void getPositionBounds(int min[3], int max[3], const Stream& stream, const QuantizationParams& params);
+
+StreamFormat writeVertexStream(std::string& bin, const Stream& stream, const QuantizationParams& params, const Settings& settings, bool has_targets);
+StreamFormat writeIndexStream(std::string& bin, const std::vector<unsigned int>& stream);
+StreamFormat writeTimeStream(std::string& bin, const std::vector<float>& data);
+StreamFormat writeKeyframeStream(std::string& bin, cgltf_animation_path_type type, const std::vector<Attr>& data);
+
+void compressVertexStream(std::string& bin, const std::string& data, size_t count, size_t stride);
+void compressIndexStream(std::string& bin, const std::string& data, size_t count, size_t stride);
