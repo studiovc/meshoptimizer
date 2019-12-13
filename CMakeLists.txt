@@ -35,6 +35,8 @@ set(GLTF_SOURCES
     gltf/basistoktx.cpp
     gltf/gltfpack.cpp
     gltf/mesh.cpp
+    gltf/parsegltf.cpp
+    gltf/parseobj.cpp
 )
 
 if(MSVC)

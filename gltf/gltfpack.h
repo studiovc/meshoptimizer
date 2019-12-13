@@ -176,6 +176,9 @@ struct BufferView
 	size_t bytes;
 };
 
+cgltf_data* parseObj(const char* path, std::vector<Mesh>& meshes, const char** error);
+cgltf_data* parseGltf(const char* path, std::vector<Mesh>& meshes, std::vector<Animation>& animations, const char** error);
+
 bool compareMeshTargets(const Mesh& lhs, const Mesh& rhs);
 
 void mergeMeshes(std::vector<Mesh>& meshes, const Settings& settings);

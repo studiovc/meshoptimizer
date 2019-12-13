@@ -28,75 +28,7 @@
 #include <unistd.h>
 #endif
 
-#include "../tools/fast_obj.h"
-
 #include "gltfpack.h"
-
-const char* getError(cgltf_result result, cgltf_data* data)
-{
-	switch (result)
-	{
-	case cgltf_result_file_not_found:
-		return data ? "resource not found" : "file not found";
-
-	case cgltf_result_io_error:
-		return "I/O error";
-
-	case cgltf_result_invalid_json:
-		return "invalid JSON";
-
-	case cgltf_result_invalid_gltf:
-		return "invalid GLTF";
-
-	case cgltf_result_out_of_memory:
-		return "out of memory";
-
-	case cgltf_result_legacy_gltf:
-		return "legacy GLTF";
-
-	case cgltf_result_data_too_short:
-		return data ? "buffer too short" : "not a GLTF file";
-
-	case cgltf_result_unknown_format:
-		return data ? "unknown resource format" : "not a GLTF file";
-
-	default:
-		return "unknown error";
-	}
-}
-
-cgltf_accessor* getAccessor(const cgltf_attribute* attributes, size_t attribute_count, cgltf_attribute_type type, int index = 0)
-{
-	for (size_t i = 0; i < attribute_count; ++i)
-		if (attributes[i].type == type && attributes[i].index == index)
-			return attributes[i].data;
-
-	return 0;
-}
-
-void readAccessor(std::vector<float>& data, const cgltf_accessor* accessor)
-{
-	assert(accessor->type == cgltf_type_scalar);
-
-	data.resize(accessor->count);
-	cgltf_accessor_unpack_floats(accessor, &data[0], data.size());
-}
-
-void readAccessor(std::vector<Attr>& data, const cgltf_accessor* accessor)
-{
-	size_t components = cgltf_num_components(accessor->type);
-
-	std::vector<float> temp(accessor->count * components);
-	cgltf_accessor_unpack_floats(accessor, &temp[0], temp.size());
-
-	data.resize(accessor->count);
-
-	for (size_t i = 0; i < accessor->count; ++i)
-	{
-		for (size_t k = 0; k < components && k < 4; ++k)
-			data[i].f[k] = temp[i * components + k];
-	}
-}
 
 void transformPosition(float* ptr, const float* transform)
 {
@@ -142,322 +74,6 @@ void transformMesh(Mesh& mesh, const cgltf_node* node)
 			for (size_t i = 0; i < stream.data.size(); ++i)
 				transformNormal(stream.data[i].f, transform);
 		}
-	}
-}
-
-void parseMeshes(cgltf_data* data, std::vector<Mesh>& meshes)
-{
-	for (size_t ni = 0; ni < data->nodes_count; ++ni)
-	{
-		cgltf_node& node = data->nodes[ni];
-
-		if (!node.mesh)
-			continue;
-
-		const cgltf_mesh& mesh = *node.mesh;
-		int mesh_id = int(&mesh - data->meshes);
-
-		for (size_t pi = 0; pi < mesh.primitives_count; ++pi)
-		{
-			const cgltf_primitive& primitive = mesh.primitives[pi];
-
-			if (primitive.type != cgltf_primitive_type_triangles && primitive.type != cgltf_primitive_type_points)
-			{
-				fprintf(stderr, "Warning: ignoring primitive %d of mesh %d because type %d is not supported\n", int(pi), mesh_id, primitive.type);
-				continue;
-			}
-
-			if (primitive.type == cgltf_primitive_type_points && primitive.indices)
-			{
-				fprintf(stderr, "Warning: ignoring primitive %d of mesh %d because indexed points are not supported\n", int(pi), mesh_id);
-				continue;
-			}
-
-			Mesh result = {};
-
-			result.node = &node;
-
-			result.material = primitive.material;
-			result.skin = node.skin;
-
-			result.type = primitive.type;
-
-			if (primitive.indices)
-			{
-				result.indices.resize(primitive.indices->count);
-				for (size_t i = 0; i < primitive.indices->count; ++i)
-					result.indices[i] = unsigned(cgltf_accessor_read_index(primitive.indices, i));
-			}
-			else if (primitive.type != cgltf_primitive_type_points)
-			{
-				size_t count = primitive.attributes ? primitive.attributes[0].data->count : 0;
-
-				// note, while we could generate a good index buffer, reindexMesh will take care of this
-				result.indices.resize(count);
-				for (size_t i = 0; i < count; ++i)
-					result.indices[i] = unsigned(i);
-			}
-
-			for (size_t ai = 0; ai < primitive.attributes_count; ++ai)
-			{
-				const cgltf_attribute& attr = primitive.attributes[ai];
-
-				if (attr.type == cgltf_attribute_type_invalid)
-				{
-					fprintf(stderr, "Warning: ignoring unknown attribute %s in primitive %d of mesh %d\n", attr.name, int(pi), mesh_id);
-					continue;
-				}
-
-				Stream s = {attr.type, attr.index};
-				readAccessor(s.data, attr.data);
-
-				if (attr.type == cgltf_attribute_type_color && attr.data->type == cgltf_type_vec3)
-				{
-					for (size_t i = 0; i < s.data.size(); ++i)
-						s.data[i].f[3] = 1.0f;
-				}
-
-				result.streams.push_back(s);
-			}
-
-			for (size_t ti = 0; ti < primitive.targets_count; ++ti)
-			{
-				const cgltf_morph_target& target = primitive.targets[ti];
-
-				for (size_t ai = 0; ai < target.attributes_count; ++ai)
-				{
-					const cgltf_attribute& attr = target.attributes[ai];
-
-					if (attr.type == cgltf_attribute_type_invalid)
-					{
-						fprintf(stderr, "Warning: ignoring unknown attribute %s in morph target %d of primitive %d of mesh %d\n", attr.name, int(ti), int(pi), mesh_id);
-						continue;
-					}
-
-					Stream s = {attr.type, attr.index, int(ti + 1)};
-					readAccessor(s.data, attr.data);
-
-					result.streams.push_back(s);
-				}
-			}
-
-			result.targets = primitive.targets_count;
-			result.target_weights.assign(mesh.weights, mesh.weights + mesh.weights_count);
-			result.target_names.assign(mesh.target_names, mesh.target_names + mesh.target_names_count);
-
-			meshes.push_back(result);
-		}
-	}
-}
-
-void defaultFree(void*, void* p)
-{
-	free(p);
-}
-
-int textureIndex(const std::vector<std::string>& textures, const char* name)
-{
-	for (size_t i = 0; i < textures.size(); ++i)
-		if (textures[i] == name)
-			return int(i);
-
-	return -1;
-}
-
-cgltf_data* parseSceneObj(fastObjMesh* obj)
-{
-	cgltf_data* data = (cgltf_data*)calloc(1, sizeof(cgltf_data));
-	data->memory_free = defaultFree;
-
-	std::vector<std::string> textures;
-
-	for (unsigned int mi = 0; mi < obj->material_count; ++mi)
-	{
-		fastObjMaterial& om = obj->materials[mi];
-
-		if (om.map_Kd.name && textureIndex(textures, om.map_Kd.name) < 0)
-			textures.push_back(om.map_Kd.name);
-	}
-
-	data->images = (cgltf_image*)calloc(textures.size(), sizeof(cgltf_image));
-	data->images_count = textures.size();
-
-	for (size_t i = 0; i < textures.size(); ++i)
-	{
-		data->images[i].uri = strdup(textures[i].c_str());
-	}
-
-	data->textures = (cgltf_texture*)calloc(textures.size(), sizeof(cgltf_texture));
-	data->textures_count = textures.size();
-
-	for (size_t i = 0; i < textures.size(); ++i)
-	{
-		data->textures[i].image = &data->images[i];
-	}
-
-	data->materials = (cgltf_material*)calloc(obj->material_count, sizeof(cgltf_material));
-	data->materials_count = obj->material_count;
-
-	for (unsigned int mi = 0; mi < obj->material_count; ++mi)
-	{
-		cgltf_material& gm = data->materials[mi];
-		fastObjMaterial& om = obj->materials[mi];
-
-		gm.has_pbr_metallic_roughness = true;
-		gm.pbr_metallic_roughness.base_color_factor[0] = 1.0f;
-		gm.pbr_metallic_roughness.base_color_factor[1] = 1.0f;
-		gm.pbr_metallic_roughness.base_color_factor[2] = 1.0f;
-		gm.pbr_metallic_roughness.base_color_factor[3] = 1.0f;
-		gm.pbr_metallic_roughness.metallic_factor = 0.0f;
-		gm.pbr_metallic_roughness.roughness_factor = 1.0f;
-
-		gm.alpha_cutoff = 0.5f;
-
-		if (om.map_Kd.name)
-		{
-			gm.pbr_metallic_roughness.base_color_texture.texture = &data->textures[textureIndex(textures, om.map_Kd.name)];
-			gm.pbr_metallic_roughness.base_color_texture.scale = 1.0f;
-
-			gm.alpha_mode = (om.illum == 4 || om.illum == 6 || om.illum == 7 || om.illum == 9) ? cgltf_alpha_mode_mask : cgltf_alpha_mode_opaque;
-		}
-
-		if (om.map_d.name)
-		{
-			gm.alpha_mode = cgltf_alpha_mode_blend;
-		}
-	}
-
-	return data;
-}
-
-void parseMeshesObj(fastObjMesh* obj, cgltf_data* data, std::vector<Mesh>& meshes)
-{
-	unsigned int material_count = std::max(obj->material_count, 1u);
-
-	std::vector<size_t> vertex_count(material_count);
-	std::vector<size_t> index_count(material_count);
-
-	for (unsigned int fi = 0; fi < obj->face_count; ++fi)
-	{
-		unsigned int mi = obj->face_materials[fi];
-
-		vertex_count[mi] += obj->face_vertices[fi];
-		index_count[mi] += (obj->face_vertices[fi] - 2) * 3;
-	}
-
-	std::vector<size_t> mesh_index(material_count);
-
-	for (unsigned int mi = 0; mi < material_count; ++mi)
-	{
-		if (index_count[mi] == 0)
-			continue;
-
-		mesh_index[mi] = meshes.size();
-
-		meshes.push_back(Mesh());
-
-		Mesh& mesh = meshes.back();
-
-		if (data->materials_count)
-		{
-			assert(mi < data->materials_count);
-			mesh.material = &data->materials[mi];
-		}
-
-		mesh.type = cgltf_primitive_type_triangles;
-
-		mesh.streams.resize(3);
-		mesh.streams[0].type = cgltf_attribute_type_position;
-		mesh.streams[0].data.resize(vertex_count[mi]);
-		mesh.streams[1].type = cgltf_attribute_type_normal;
-		mesh.streams[1].data.resize(vertex_count[mi]);
-		mesh.streams[2].type = cgltf_attribute_type_texcoord;
-		mesh.streams[2].data.resize(vertex_count[mi]);
-		mesh.indices.resize(index_count[mi]);
-		mesh.targets = 0;
-	}
-
-	std::vector<size_t> vertex_offset(material_count);
-	std::vector<size_t> index_offset(material_count);
-
-	size_t group_offset = 0;
-
-	for (unsigned int fi = 0; fi < obj->face_count; ++fi)
-	{
-		unsigned int mi = obj->face_materials[fi];
-		Mesh& mesh = meshes[mesh_index[mi]];
-
-		size_t vo = vertex_offset[mi];
-		size_t io = index_offset[mi];
-
-		for (unsigned int vi = 0; vi < obj->face_vertices[fi]; ++vi)
-		{
-			fastObjIndex ii = obj->indices[group_offset + vi];
-
-			Attr p = {{obj->positions[ii.p * 3 + 0], obj->positions[ii.p * 3 + 1], obj->positions[ii.p * 3 + 2]}};
-			Attr n = {{obj->normals[ii.n * 3 + 0], obj->normals[ii.n * 3 + 1], obj->normals[ii.n * 3 + 2]}};
-			Attr t = {{obj->texcoords[ii.t * 2 + 0], 1.f - obj->texcoords[ii.t * 2 + 1]}};
-
-			mesh.streams[0].data[vo + vi] = p;
-			mesh.streams[1].data[vo + vi] = n;
-			mesh.streams[2].data[vo + vi] = t;
-		}
-
-		for (unsigned int vi = 2; vi < obj->face_vertices[fi]; ++vi)
-		{
-			size_t to = io + (vi - 2) * 3;
-
-			mesh.indices[to + 0] = unsigned(vo);
-			mesh.indices[to + 1] = unsigned(vo + vi - 1);
-			mesh.indices[to + 2] = unsigned(vo + vi);
-		}
-
-		vertex_offset[mi] += obj->face_vertices[fi];
-		index_offset[mi] += (obj->face_vertices[fi] - 2) * 3;
-		group_offset += obj->face_vertices[fi];
-	}
-}
-
-void parseAnimations(cgltf_data* data, std::vector<Animation>& animations)
-{
-	for (size_t i = 0; i < data->animations_count; ++i)
-	{
-		const cgltf_animation& animation = data->animations[i];
-
-		Animation result = {};
-		result.name = animation.name;
-
-		for (size_t j = 0; j < animation.channels_count; ++j)
-		{
-			const cgltf_animation_channel& channel = animation.channels[j];
-
-			if (!channel.target_node)
-			{
-				fprintf(stderr, "Warning: ignoring channel %d of animation %d because it has no target node\n", int(j), int(i));
-				continue;
-			}
-
-			Track track = {};
-			track.node = channel.target_node;
-			track.path = channel.target_path;
-
-			track.components = (channel.target_path == cgltf_animation_path_type_weights) ? track.node->mesh->primitives[0].targets_count : 1;
-
-			track.interpolation = channel.sampler->interpolation;
-
-			readAccessor(track.time, channel.sampler->input);
-			readAccessor(track.data, channel.sampler->output);
-
-			result.tracks.push_back(track);
-		}
-
-		if (result.tracks.empty())
-		{
-			fprintf(stderr, "Warning: ignoring animation %d because it has no valid tracks\n", int(i));
-			continue;
-		}
-
-		animations.push_back(result);
 	}
 }
 
@@ -3172,15 +2788,6 @@ void writeU32(FILE* out, uint32_t data)
 	fwrite(&data, 4, 1, out);
 }
 
-bool requiresExtension(cgltf_data* data, const char* name)
-{
-	for (size_t i = 0; i < data->extensions_required_count; ++i)
-		if (strcmp(data->extensions_required[i], name) == 0)
-			return true;
-
-	return false;
-}
-
 const char* getBaseName(const char* path)
 {
 	const char* slash = strrchr(path, '/');
@@ -3231,29 +2838,6 @@ std::string getBufferSpec(const char* bin_path, size_t bin_size, const char* fal
 	return json;
 }
 
-bool needsDummyBuffers(cgltf_data* data)
-{
-	for (size_t i = 0; i < data->accessors_count; ++i)
-	{
-		cgltf_accessor* accessor = &data->accessors[i];
-
-		if (accessor->buffer_view && accessor->buffer_view->buffer->data == NULL)
-			return true;
-
-		if (accessor->is_sparse)
-		{
-			cgltf_accessor_sparse* sparse = &accessor->sparse;
-
-			if (sparse->indices_buffer_view->buffer->data == NULL)
-				return true;
-			if (sparse->values_buffer_view->buffer->data == NULL)
-				return true;
-		}
-	}
-
-	return false;
-}
-
 int gltfpack(const char* input, const char* output, const Settings& settings)
 {
 	cgltf_data* data = 0;
@@ -3264,47 +2848,25 @@ int gltfpack(const char* input, const char* output, const Settings& settings)
 
 	if (iext && (strcmp(iext, ".gltf") == 0 || strcmp(iext, ".GLTF") == 0 || strcmp(iext, ".glb") == 0 || strcmp(iext, ".GLB") == 0))
 	{
-		cgltf_options options = {};
-		cgltf_result result = cgltf_parse_file(&options, input, &data);
-		result = (result == cgltf_result_success) ? cgltf_load_buffers(&options, data, input) : result;
-		result = (result == cgltf_result_success) ? cgltf_validate(data) : result;
-
 		const char* error = NULL;
+		data = parseGltf(input, meshes, animations, &error);
 
-		if (result != cgltf_result_success)
-			error = getError(result, data);
-		else if (requiresExtension(data, "KHR_draco_mesh_compression"))
-			error = "file requires Draco mesh compression support";
-		else if (requiresExtension(data, "MESHOPT_compression"))
-			error = "file has already been compressed using gltfpack";
-		else if (needsDummyBuffers(data))
-			error = "buffer has no data";
-
-		if (error)
+		if (!data)
 		{
 			fprintf(stderr, "Error loading %s: %s\n", input, error);
-			cgltf_free(data);
 			return 2;
 		}
-
-		parseMeshes(data, meshes);
-		parseAnimations(data, animations);
 	}
 	else if (iext && (strcmp(iext, ".obj") == 0 || strcmp(iext, ".OBJ") == 0))
 	{
-		fastObjMesh* obj = fast_obj_read(input);
+		const char* error = NULL;
+		data = parseObj(input, meshes, &error);
 
-		if (!obj)
+		if (!data)
 		{
-			fprintf(stderr, "Error loading %s: file not found\n", input);
-			cgltf_free(data);
+			fprintf(stderr, "Error loading %s: %s\n", input, error);
 			return 2;
 		}
-
-		data = parseSceneObj(obj);
-		parseMeshesObj(obj, data, meshes);
-
-		fast_obj_destroy(obj);
 	}
 	else
 	{
