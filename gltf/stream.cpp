@@ -6,6 +6,8 @@
 #include <math.h>
 #include <stdint.h>
 
+#include <algorithm>
+
 #include "../src/meshoptimizer.h"
 
 static bool getAttributeBounds(const std::vector<Mesh>& meshes, cgltf_attribute_type type, Attr& min, Attr& max)

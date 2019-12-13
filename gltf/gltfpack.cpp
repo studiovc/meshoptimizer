@@ -1,26 +1,13 @@
 // This file is part of gltfpack; see gltfpack.h for version/license details
-#ifndef _CRT_SECURE_NO_WARNINGS
-#define _CRT_SECURE_NO_WARNINGS
-#endif
+#include "gltfpack.h"
 
-#ifndef _CRT_NONSTDC_NO_WARNINGS
-#define _CRT_NONSTDC_NO_WARNINGS
-#endif
-
-#include "../src/meshoptimizer.h"
-
-#include <algorithm>
-#include <string>
-#include <vector>
-
-#include <float.h>
-#include <limits.h>
-#include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
-#include "gltfpack.h"
+#include <algorithm>
+
+#include "../src/meshoptimizer.h"
 
 static void comma(std::string& s)
 {

@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <algorithm>
+
 #include "../tools/fast_obj.h"
 
 static void defaultFree(void*, void* p)
