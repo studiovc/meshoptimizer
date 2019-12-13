@@ -22,7 +22,7 @@
 
 #include "gltfpack.h"
 
-void comma(std::string& s)
+static void comma(std::string& s)
 {
 	char ch = s.empty() ? 0 : s[s.size() - 1];
 
@@ -30,31 +30,31 @@ void comma(std::string& s)
 		s += ",";
 }
 
-void append(std::string& s, size_t v)
+static void append(std::string& s, size_t v)
 {
 	char buf[32];
 	sprintf(buf, "%zu", v);
 	s += buf;
 }
 
-void append(std::string& s, float v)
+static void append(std::string& s, float v)
 {
 	char buf[512];
 	sprintf(buf, "%.9g", v);
 	s += buf;
 }
 
-void append(std::string& s, const char* v)
+static void append(std::string& s, const char* v)
 {
 	s += v;
 }
 
-void append(std::string& s, const std::string& v)
+static void append(std::string& s, const std::string& v)
 {
 	s += v;
 }
 
-const char* componentType(cgltf_component_type type)
+static const char* componentType(cgltf_component_type type)
 {
 	switch (type)
 	{
@@ -75,7 +75,7 @@ const char* componentType(cgltf_component_type type)
 	}
 }
 
-const char* shapeType(cgltf_type type)
+static const char* shapeType(cgltf_type type)
 {
 	switch (type)
 	{
@@ -98,7 +98,7 @@ const char* shapeType(cgltf_type type)
 	}
 }
 
-const char* attributeType(cgltf_attribute_type type)
+static const char* attributeType(cgltf_attribute_type type)
 {
 	switch (type)
 	{
@@ -121,7 +121,7 @@ const char* attributeType(cgltf_attribute_type type)
 	}
 }
 
-const char* animationPath(cgltf_animation_path_type type)
+static const char* animationPath(cgltf_animation_path_type type)
 {
 	switch (type)
 	{
@@ -138,7 +138,7 @@ const char* animationPath(cgltf_animation_path_type type)
 	}
 }
 
-const char* lightType(cgltf_light_type type)
+static const char* lightType(cgltf_light_type type)
 {
 	switch (type)
 	{
@@ -153,7 +153,7 @@ const char* lightType(cgltf_light_type type)
 	}
 }
 
-void writeTextureInfo(std::string& json, const cgltf_data* data, const cgltf_texture_view& view, const QuantizationParams& qp)
+static void writeTextureInfo(std::string& json, const cgltf_data* data, const cgltf_texture_view& view, const QuantizationParams& qp)
 {
 	assert(view.texture);
 
@@ -195,7 +195,7 @@ void writeTextureInfo(std::string& json, const cgltf_data* data, const cgltf_tex
 	append(json, "}}}");
 }
 
-void writeMaterialInfo(std::string& json, const cgltf_data* data, const cgltf_material& material, const QuantizationParams& qp)
+static void writeMaterialInfo(std::string& json, const cgltf_data* data, const cgltf_material& material, const QuantizationParams& qp)
 {
 	static const float white[4] = {1, 1, 1, 1};
 	static const float black[4] = {0, 0, 0, 0};
@@ -372,7 +372,7 @@ void writeMaterialInfo(std::string& json, const cgltf_data* data, const cgltf_ma
 	}
 }
 
-size_t getBufferView(std::vector<BufferView>& views, BufferView::Kind kind, int variant, size_t stride, bool compressed)
+static size_t getBufferView(std::vector<BufferView>& views, BufferView::Kind kind, int variant, size_t stride, bool compressed)
 {
 	if (variant >= 0)
 	{
@@ -387,7 +387,7 @@ size_t getBufferView(std::vector<BufferView>& views, BufferView::Kind kind, int 
 	return views.size() - 1;
 }
 
-void writeBufferView(std::string& json, BufferView::Kind kind, size_t count, size_t stride, size_t bin_offset, size_t bin_size, int compression, size_t compressed_offset, size_t compressed_size)
+static void writeBufferView(std::string& json, BufferView::Kind kind, size_t count, size_t stride, size_t bin_offset, size_t bin_size, int compression, size_t compressed_offset, size_t compressed_size)
 {
 	assert(bin_size == count * stride);
 
@@ -431,7 +431,7 @@ void writeBufferView(std::string& json, BufferView::Kind kind, size_t count, siz
 	append(json, "}");
 }
 
-void writeAccessor(std::string& json, size_t view, size_t offset, cgltf_type type, cgltf_component_type component_type, bool normalized, size_t count, const float* min = 0, const float* max = 0, size_t numminmax = 0)
+static void writeAccessor(std::string& json, size_t view, size_t offset, cgltf_type type, cgltf_component_type component_type, bool normalized, size_t count, const float* min = 0, const float* max = 0, size_t numminmax = 0)
 {
 	append(json, "{\"bufferView\":");
 	append(json, view);
@@ -472,7 +472,7 @@ void writeAccessor(std::string& json, size_t view, size_t offset, cgltf_type typ
 	append(json, "}");
 }
 
-bool parseDataUri(const char* uri, std::string& mime_type, std::string& result)
+static bool parseDataUri(const char* uri, std::string& mime_type, std::string& result)
 {
 	if (strncmp(uri, "data:", 5) == 0)
 	{
@@ -510,7 +510,7 @@ bool parseDataUri(const char* uri, std::string& mime_type, std::string& result)
 	return false;
 }
 
-void writeEmbeddedImage(std::string& json, std::vector<BufferView>& views, const char* data, size_t size, const char* mime_type)
+static void writeEmbeddedImage(std::string& json, std::vector<BufferView>& views, const char* data, size_t size, const char* mime_type)
 {
 	size_t view = getBufferView(views, BufferView::Kind_Image, -1, 1, false);
 
@@ -524,7 +524,7 @@ void writeEmbeddedImage(std::string& json, std::vector<BufferView>& views, const
 	append(json, "\"");
 }
 
-void writeImage(std::string& json, std::vector<BufferView>& views, const cgltf_image& image, const ImageInfo& info, size_t index, const char* input_path, const char* output_path, const Settings& settings)
+static void writeImage(std::string& json, std::vector<BufferView>& views, const cgltf_image& image, const ImageInfo& info, size_t index, const char* input_path, const char* output_path, const Settings& settings)
 {
 	std::string img_data;
 	std::string mime_type;
@@ -626,7 +626,7 @@ void writeImage(std::string& json, std::vector<BufferView>& views, const cgltf_i
 	}
 }
 
-void writeTexture(std::string& json, const cgltf_texture& texture, cgltf_data* data, const Settings& settings)
+static void writeTexture(std::string& json, const cgltf_texture& texture, cgltf_data* data, const Settings& settings)
 {
 	if (texture.image)
 	{
@@ -644,7 +644,7 @@ void writeTexture(std::string& json, const cgltf_texture& texture, cgltf_data* d
 	}
 }
 
-void writeMeshAttributes(std::string& json, std::vector<BufferView>& views, std::string& json_accessors, size_t& accr_offset, const Mesh& mesh, int target, const QuantizationParams& qp, const Settings& settings)
+static void writeMeshAttributes(std::string& json, std::vector<BufferView>& views, std::string& json_accessors, size_t& accr_offset, const Mesh& mesh, int target, const QuantizationParams& qp, const Settings& settings)
 {
 	std::string scratch;
 
@@ -694,7 +694,7 @@ void writeMeshAttributes(std::string& json, std::vector<BufferView>& views, std:
 	}
 }
 
-size_t writeMeshIndices(std::vector<BufferView>& views, std::string& json_accessors, size_t& accr_offset, const Mesh& mesh, const Settings& settings)
+static size_t writeMeshIndices(std::vector<BufferView>& views, std::string& json_accessors, size_t& accr_offset, const Mesh& mesh, const Settings& settings)
 {
 	std::string scratch;
 	StreamFormat format = writeIndexStream(scratch, mesh.indices);
@@ -714,7 +714,7 @@ size_t writeMeshIndices(std::vector<BufferView>& views, std::string& json_access
 	return index_accr;
 }
 
-size_t writeAnimationTime(std::vector<BufferView>& views, std::string& json_accessors, size_t& accr_offset, float mint, int frames, const Settings& settings)
+static size_t writeAnimationTime(std::vector<BufferView>& views, std::string& json_accessors, size_t& accr_offset, float mint, int frames, const Settings& settings)
 {
 	std::vector<float> time(frames);
 
@@ -736,7 +736,7 @@ size_t writeAnimationTime(std::vector<BufferView>& views, std::string& json_acce
 	return time_accr;
 }
 
-size_t writeJointBindMatrices(std::vector<BufferView>& views, std::string& json_accessors, size_t& accr_offset, const cgltf_skin& skin, const QuantizationParams& qp, const Settings& settings)
+static size_t writeJointBindMatrices(std::vector<BufferView>& views, std::string& json_accessors, size_t& accr_offset, const cgltf_skin& skin, const QuantizationParams& qp, const Settings& settings)
 {
 	std::string scratch;
 
@@ -775,7 +775,7 @@ size_t writeJointBindMatrices(std::vector<BufferView>& views, std::string& json_
 	return matrix_accr;
 }
 
-void writeMeshNode(std::string& json, size_t mesh_offset, const Mesh& mesh, cgltf_data* data, const QuantizationParams& qp)
+static void writeMeshNode(std::string& json, size_t mesh_offset, const Mesh& mesh, cgltf_data* data, const QuantizationParams& qp)
 {
 	float node_scale = qp.pos_scale / float((1 << qp.pos_bits) - 1);
 
@@ -814,7 +814,7 @@ void writeMeshNode(std::string& json, size_t mesh_offset, const Mesh& mesh, cglt
 	append(json, "}");
 }
 
-void writeNode(std::string& json, const cgltf_node& node, const std::vector<NodeInfo>& nodes, cgltf_data* data)
+static void writeNode(std::string& json, const cgltf_node& node, const std::vector<NodeInfo>& nodes, cgltf_data* data)
 {
 	const NodeInfo& ni = nodes[&node - data->nodes];
 
@@ -910,7 +910,7 @@ void writeNode(std::string& json, const cgltf_node& node, const std::vector<Node
 	append(json, "}");
 }
 
-void writeAnimation(std::string& json, std::vector<BufferView>& views, std::string& json_accessors, size_t& accr_offset, const Animation& animation, size_t i, cgltf_data* data, const std::vector<NodeInfo>& nodes, const Settings& settings)
+static void writeAnimation(std::string& json, std::vector<BufferView>& views, std::string& json_accessors, size_t& accr_offset, const Animation& animation, size_t i, cgltf_data* data, const std::vector<NodeInfo>& nodes, const Settings& settings)
 {
 	std::vector<const Track*> tracks;
 
@@ -1017,7 +1017,7 @@ void writeAnimation(std::string& json, std::vector<BufferView>& views, std::stri
 	append(json, "]}");
 }
 
-void writeCamera(std::string& json, const cgltf_camera& camera)
+static void writeCamera(std::string& json, const cgltf_camera& camera)
 {
 	comma(json);
 	append(json, "{");
@@ -1063,7 +1063,7 @@ void writeCamera(std::string& json, const cgltf_camera& camera)
 	append(json, "}");
 }
 
-void writeLight(std::string& json, const cgltf_light& light)
+static void writeLight(std::string& json, const cgltf_light& light)
 {
 	static const float white[3] = {1, 1, 1};
 
@@ -1107,7 +1107,7 @@ void writeLight(std::string& json, const cgltf_light& light)
 	append(json, "}");
 }
 
-void writeArray(std::string& json, const char* name, const std::string& contents)
+static void writeArray(std::string& json, const char* name, const std::string& contents)
 {
 	if (contents.empty())
 		return;
@@ -1120,7 +1120,7 @@ void writeArray(std::string& json, const char* name, const std::string& contents
 	append(json, "]");
 }
 
-void writeExtensions(std::string& json, const ExtensionInfo* extensions, size_t count)
+static void writeExtensions(std::string& json, const ExtensionInfo* extensions, size_t count)
 {
 	comma(json);
 	append(json, "\"extensionsUsed\":[");
@@ -1147,7 +1147,7 @@ void writeExtensions(std::string& json, const ExtensionInfo* extensions, size_t 
 	append(json, "]");
 }
 
-void finalizeBufferViews(std::string& json, std::vector<BufferView>& views, std::string& bin, std::string& fallback)
+static void finalizeBufferViews(std::string& json, std::vector<BufferView>& views, std::string& bin, std::string& fallback)
 {
 	for (size_t i = 0; i < views.size(); ++i)
 	{
@@ -1194,7 +1194,7 @@ void finalizeBufferViews(std::string& json, std::vector<BufferView>& views, std:
 	}
 }
 
-void printMeshStats(const std::vector<Mesh>& meshes, const char* name)
+static void printMeshStats(const std::vector<Mesh>& meshes, const char* name)
 {
 	size_t triangles = 0;
 	size_t vertices = 0;
@@ -1210,7 +1210,7 @@ void printMeshStats(const std::vector<Mesh>& meshes, const char* name)
 	printf("%s: %d triangles, %d vertices\n", name, int(triangles), int(vertices));
 }
 
-void printSceneStats(const std::vector<BufferView>& views, const std::vector<Mesh>& meshes, size_t node_offset, size_t mesh_offset, size_t material_offset, size_t json_size, size_t bin_size)
+static void printSceneStats(const std::vector<BufferView>& views, const std::vector<Mesh>& meshes, size_t node_offset, size_t mesh_offset, size_t material_offset, size_t json_size, size_t bin_size)
 {
 	size_t bytes[BufferView::Kind_Count] = {};
 
@@ -1227,7 +1227,7 @@ void printSceneStats(const std::vector<BufferView>& views, const std::vector<Mes
 	       int(bytes[BufferView::Kind_Time]), int(bytes[BufferView::Kind_Keyframe]), int(bytes[BufferView::Kind_Image]));
 }
 
-void printAttributeStats(const std::vector<BufferView>& views, BufferView::Kind kind, const char* name)
+static void printAttributeStats(const std::vector<BufferView>& views, BufferView::Kind kind, const char* name)
 {
 	for (size_t i = 0; i < views.size(); ++i)
 	{
@@ -1267,7 +1267,7 @@ void printAttributeStats(const std::vector<BufferView>& views, BufferView::Kind 
 	}
 }
 
-void process(cgltf_data* data, const char* input_path, const char* output_path, std::vector<Mesh>& meshes, std::vector<Animation>& animations, const Settings& settings, std::string& json, std::string& bin, std::string& fallback)
+static void process(cgltf_data* data, const char* input_path, const char* output_path, std::vector<Mesh>& meshes, std::vector<Animation>& animations, const Settings& settings, std::string& json, std::string& bin, std::string& fallback)
 {
 	if (settings.verbose)
 	{
@@ -1653,12 +1653,12 @@ void process(cgltf_data* data, const char* input_path, const char* output_path, 
 	}
 }
 
-void writeU32(FILE* out, uint32_t data)
+static void writeU32(FILE* out, uint32_t data)
 {
 	fwrite(&data, 4, 1, out);
 }
 
-const char* getBaseName(const char* path)
+static const char* getBaseName(const char* path)
 {
 	const char* slash = strrchr(path, '/');
 	const char* backslash = strrchr(path, '\\');
@@ -1669,7 +1669,7 @@ const char* getBaseName(const char* path)
 	return std::max(rs, bs);
 }
 
-std::string getBufferSpec(const char* bin_path, size_t bin_size, const char* fallback_path, size_t fallback_size, bool fallback_ref)
+static std::string getBufferSpec(const char* bin_path, size_t bin_size, const char* fallback_path, size_t fallback_size, bool fallback_ref)
 {
 	std::string json;
 	append(json, "\"buffers\":[");
