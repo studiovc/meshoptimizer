@@ -1062,12 +1062,13 @@ unsigned int cpuid = getCpuFeatures();
 
 } // namespace meshopt
 
-size_t meshopt_encodeVertexBuffer(unsigned char* buffer, size_t buffer_size, const void* vertices, size_t vertex_count, size_t vertex_size)
+size_t meshopt_encodeVertexBuffer(unsigned char* buffer, size_t buffer_size, const void* vertices, size_t vertex_count, size_t vertex_size, int version)
 {
 	using namespace meshopt;
 
 	assert(vertex_size > 0 && vertex_size <= 256);
 	assert(vertex_size % 4 == 0);
+	assert(unsigned(version) <= 0);
 
 #if TRACE
 	memset(vertexstats, 0, sizeof(vertexstats));
@@ -1081,7 +1082,7 @@ size_t meshopt_encodeVertexBuffer(unsigned char* buffer, size_t buffer_size, con
 	if (size_t(data_end - data) < 1 + vertex_size)
 		return 0;
 
-	*data++ = kVertexHeader;
+	*data++ = (unsigned char)(kVertexHeader | version);
 
 	unsigned char last_vertex[256] = {};
 	if (vertex_count > 0)
@@ -1193,8 +1194,13 @@ int meshopt_decodeVertexBuffer(void* destination, size_t vertex_count, size_t ve
 	if (size_t(data_end - data) < 1 + vertex_size)
 		return -2;
 
-	if (*data++ != kVertexHeader)
+	if ((data[0] & 0xf0) != kVertexHeader)
 		return -1;
+
+	if ((data[0] & 0x0f) > 0)
+		return -1;
+
+	data++;
 
 	unsigned char last_vertex[256];
 	memcpy(last_vertex, data_end - vertex_size, vertex_size);

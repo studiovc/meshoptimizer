@@ -162,8 +162,9 @@ MESHOPTIMIZER_API size_t meshopt_optimizeVertexFetchRemap(unsigned int* destinat
  * For maximum efficiency the index buffer being encoded has to be optimized for vertex cache and vertex fetch first.
  *
  * buffer must contain enough space for the encoded index buffer (use meshopt_encodeIndexBufferBound to compute worst case size)
+ * version must specify the data format version to encode; valid values are 0 (decodable by all library versions) and 1 (decodable by 0.14+)
  */
-MESHOPTIMIZER_API size_t meshopt_encodeIndexBuffer(unsigned char* buffer, size_t buffer_size, const unsigned int* indices, size_t index_count);
+MESHOPTIMIZER_API size_t meshopt_encodeIndexBuffer(unsigned char* buffer, size_t buffer_size, const unsigned int* indices, size_t index_count, int version);
 MESHOPTIMIZER_API size_t meshopt_encodeIndexBufferBound(size_t index_count, size_t vertex_count);
 
 /**
@@ -183,8 +184,9 @@ MESHOPTIMIZER_API int meshopt_decodeIndexBuffer(void* destination, size_t index_
  * This function works for a single vertex stream; for multiple vertex streams, call meshopt_encodeVertexBuffer for each stream.
  *
  * buffer must contain enough space for the encoded vertex buffer (use meshopt_encodeVertexBufferBound to compute worst case size)
+ * version must specify the data format version to encode; valid values are 0 (decodable by all library versions)
  */
-MESHOPTIMIZER_API size_t meshopt_encodeVertexBuffer(unsigned char* buffer, size_t buffer_size, const void* vertices, size_t vertex_count, size_t vertex_size);
+MESHOPTIMIZER_API size_t meshopt_encodeVertexBuffer(unsigned char* buffer, size_t buffer_size, const void* vertices, size_t vertex_count, size_t vertex_size, int version);
 MESHOPTIMIZER_API size_t meshopt_encodeVertexBufferBound(size_t vertex_count, size_t vertex_size);
 
 /**
@@ -457,7 +459,7 @@ inline size_t meshopt_optimizeVertexFetchRemap(unsigned int* destination, const 
 template <typename T>
 inline size_t meshopt_optimizeVertexFetch(void* destination, T* indices, size_t index_count, const void* vertices, size_t vertex_count, size_t vertex_size);
 template <typename T>
-inline size_t meshopt_encodeIndexBuffer(unsigned char* buffer, size_t buffer_size, const T* indices, size_t index_count);
+inline size_t meshopt_encodeIndexBuffer(unsigned char* buffer, size_t buffer_size, const T* indices, size_t index_count, int version);
 template <typename T>
 inline int meshopt_decodeIndexBuffer(T* destination, size_t index_count, const unsigned char* buffer, size_t buffer_size);
 template <typename T>
@@ -742,11 +744,11 @@ inline size_t meshopt_optimizeVertexFetch(void* destination, T* indices, size_t 
 }
 
 template <typename T>
-inline size_t meshopt_encodeIndexBuffer(unsigned char* buffer, size_t buffer_size, const T* indices, size_t index_count)
+inline size_t meshopt_encodeIndexBuffer(unsigned char* buffer, size_t buffer_size, const T* indices, size_t index_count, int version)
 {
 	meshopt_IndexAdapter<T> in(0, indices, index_count);
 
-	return meshopt_encodeIndexBuffer(buffer, buffer_size, in.data, index_count);
+	return meshopt_encodeIndexBuffer(buffer, buffer_size, in.data, index_count, version);
 }
 
 template <typename T>

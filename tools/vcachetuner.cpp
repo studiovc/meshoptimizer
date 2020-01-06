@@ -227,7 +227,7 @@ void compute_metric(const State* state, const Mesh& mesh, float result[Profile_C
 		else
 		{
 			std::vector<unsigned char> ibuf(meshopt_encodeIndexBufferBound(indices.size(), mesh.vertex_count));
-			ibuf.resize(meshopt_encodeIndexBuffer(&ibuf[0], ibuf.size(), &indices[0], indices.size()));
+			ibuf.resize(meshopt_encodeIndexBuffer(&ibuf[0], ibuf.size(), &indices[0], indices.size(), 0));
 
 			size_t csize = compress(ibuf);
 

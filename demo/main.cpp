@@ -522,10 +522,10 @@ void simplifyComplete(const Mesh& mesh)
 		packMesh(pv, vertices);
 
 		std::vector<unsigned char> vbuf(meshopt_encodeVertexBufferBound(vertices.size(), sizeof(PV)));
-		vbuf.resize(meshopt_encodeVertexBuffer(&vbuf[0], vbuf.size(), &pv[0], vertices.size(), sizeof(PV)));
+		vbuf.resize(meshopt_encodeVertexBuffer(&vbuf[0], vbuf.size(), &pv[0], vertices.size(), sizeof(PV), 0));
 
 		std::vector<unsigned char> ibuf(meshopt_encodeIndexBufferBound(indices.size(), vertices.size()));
-		ibuf.resize(meshopt_encodeIndexBuffer(&ibuf[0], ibuf.size(), &indices[0], indices.size()));
+		ibuf.resize(meshopt_encodeIndexBuffer(&ibuf[0], ibuf.size(), &indices[0], indices.size(), 0));
 
 		printf("%-9s  ACMR %f...%f Overfetch %f..%f Codec VB %.1f bits/vertex IB %.1f bits/triangle\n",
 		       "",
@@ -573,7 +573,7 @@ void encodeIndex(const Mesh& mesh)
 	double start = timestamp();
 
 	std::vector<unsigned char> buffer(meshopt_encodeIndexBufferBound(mesh.indices.size(), mesh.vertices.size()));
-	buffer.resize(meshopt_encodeIndexBuffer(&buffer[0], buffer.size(), &mesh.indices[0], mesh.indices.size()));
+	buffer.resize(meshopt_encodeIndexBuffer(&buffer[0], buffer.size(), &mesh.indices[0], mesh.indices.size(), 0));
 
 	double middle = timestamp();
 
@@ -626,7 +626,7 @@ void encodeVertex(const Mesh& mesh, const char* pvn)
 	double start = timestamp();
 
 	std::vector<unsigned char> vbuf(meshopt_encodeVertexBufferBound(mesh.vertices.size(), sizeof(PV)));
-	vbuf.resize(meshopt_encodeVertexBuffer(&vbuf[0], vbuf.size(), &pv[0], mesh.vertices.size(), sizeof(PV)));
+	vbuf.resize(meshopt_encodeVertexBuffer(&vbuf[0], vbuf.size(), &pv[0], mesh.vertices.size(), sizeof(PV), 0));
 
 	double middle = timestamp();
 
@@ -804,7 +804,7 @@ void spatialSort(const Mesh& mesh)
 	meshopt_remapVertexBuffer(&pv[0], &pv[0], mesh.vertices.size(), sizeof(PV), &remap[0]);
 
 	std::vector<unsigned char> vbuf(meshopt_encodeVertexBufferBound(mesh.vertices.size(), sizeof(PV)));
-	vbuf.resize(meshopt_encodeVertexBuffer(&vbuf[0], vbuf.size(), &pv[0], mesh.vertices.size(), sizeof(PV)));
+	vbuf.resize(meshopt_encodeVertexBuffer(&vbuf[0], vbuf.size(), &pv[0], mesh.vertices.size(), sizeof(PV), 0));
 
 	size_t csize = compress(vbuf);
 
@@ -833,10 +833,10 @@ void spatialSortTriangles(const Mesh& mesh)
 	packMesh(pv, copy.vertices);
 
 	std::vector<unsigned char> vbuf(meshopt_encodeVertexBufferBound(mesh.vertices.size(), sizeof(PV)));
-	vbuf.resize(meshopt_encodeVertexBuffer(&vbuf[0], vbuf.size(), &pv[0], mesh.vertices.size(), sizeof(PV)));
+	vbuf.resize(meshopt_encodeVertexBuffer(&vbuf[0], vbuf.size(), &pv[0], mesh.vertices.size(), sizeof(PV), 0));
 
 	std::vector<unsigned char> ibuf(meshopt_encodeIndexBufferBound(mesh.indices.size(), mesh.vertices.size()));
-	ibuf.resize(meshopt_encodeIndexBuffer(&ibuf[0], ibuf.size(), &copy.indices[0], mesh.indices.size()));
+	ibuf.resize(meshopt_encodeIndexBuffer(&ibuf[0], ibuf.size(), &copy.indices[0], mesh.indices.size(), 0));
 
 	size_t csizev = compress(vbuf);
 	size_t csizei = compress(ibuf);

@@ -1127,8 +1127,10 @@ void simplifyMesh(Mesh& mesh, float threshold, bool aggressive)
 	}
 }
 
-void optimizeMesh(Mesh& mesh)
+void optimizeMesh(Mesh& mesh, bool compress)
 {
+	(void)compress;
+
 	size_t vertex_count = mesh.streams[0].data.size();
 
 	meshopt_optimizeVertexCache(&mesh.indices[0], &mesh.indices[0], mesh.indices.size(), vertex_count);
@@ -1325,7 +1327,7 @@ void processMesh(Mesh& mesh, const Settings& settings)
 		reindexMesh(mesh);
 		filterTriangles(mesh);
 		simplifyMesh(mesh, settings.simplify_threshold, settings.simplify_aggressive);
-		optimizeMesh(mesh);
+		optimizeMesh(mesh, settings.compress);
 		break;
 
 	default:
@@ -1902,7 +1904,7 @@ void compressVertexStream(std::string& bin, const std::string& data, size_t coun
 	assert(data.size() == count * stride);
 
 	std::vector<unsigned char> compressed(meshopt_encodeVertexBufferBound(count, stride));
-	size_t size = meshopt_encodeVertexBuffer(&compressed[0], compressed.size(), data.c_str(), count, stride);
+	size_t size = meshopt_encodeVertexBuffer(&compressed[0], compressed.size(), data.c_str(), count, stride, 0);
 
 	bin.append(reinterpret_cast<const char*>(&compressed[0]), size);
 }
@@ -1916,9 +1918,9 @@ void compressIndexStream(std::string& bin, const std::string& data, size_t count
 	size_t size = 0;
 
 	if (stride == 2)
-		size = meshopt_encodeIndexBuffer(&compressed[0], compressed.size(), reinterpret_cast<const uint16_t*>(data.c_str()), count);
+		size = meshopt_encodeIndexBuffer(&compressed[0], compressed.size(), reinterpret_cast<const uint16_t*>(data.c_str()), count, 0);
 	else
-		size = meshopt_encodeIndexBuffer(&compressed[0], compressed.size(), reinterpret_cast<const uint32_t*>(data.c_str()), count);
+		size = meshopt_encodeIndexBuffer(&compressed[0], compressed.size(), reinterpret_cast<const uint32_t*>(data.c_str()), count, 0);
 
 	bin.append(reinterpret_cast<const char*>(&compressed[0]), size);
 }

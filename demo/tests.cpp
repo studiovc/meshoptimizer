@@ -60,7 +60,7 @@ static void decodeIndex16()
 	const size_t vertex_count = 10;
 
 	std::vector<unsigned char> buffer(meshopt_encodeIndexBufferBound(index_count, vertex_count));
-	buffer.resize(meshopt_encodeIndexBuffer(&buffer[0], buffer.size(), kIndexBuffer, index_count));
+	buffer.resize(meshopt_encodeIndexBuffer(&buffer[0], buffer.size(), kIndexBuffer, index_count, 0));
 
 	unsigned short decoded[index_count];
 	assert(meshopt_decodeIndexBuffer(decoded, index_count, &buffer[0], buffer.size()) == 0);
@@ -75,13 +75,13 @@ static void encodeIndexMemorySafe()
 	const size_t vertex_count = 10;
 
 	std::vector<unsigned char> buffer(meshopt_encodeIndexBufferBound(index_count, vertex_count));
-	buffer.resize(meshopt_encodeIndexBuffer(&buffer[0], buffer.size(), kIndexBuffer, index_count));
+	buffer.resize(meshopt_encodeIndexBuffer(&buffer[0], buffer.size(), kIndexBuffer, index_count, 0));
 
 	// check that encode is memory-safe; note that we reallocate the buffer for each try to make sure ASAN can verify buffer access
 	for (size_t i = 0; i <= buffer.size(); ++i)
 	{
 		std::vector<unsigned char> shortbuffer(i);
-		size_t result = meshopt_encodeIndexBuffer(i == 0 ? 0 : &shortbuffer[0], i, kIndexBuffer, index_count);
+		size_t result = meshopt_encodeIndexBuffer(i == 0 ? 0 : &shortbuffer[0], i, kIndexBuffer, index_count, 0);
 
 		if (i == buffer.size())
 			assert(result == buffer.size());
@@ -96,7 +96,7 @@ static void decodeIndexMemorySafe()
 	const size_t vertex_count = 10;
 
 	std::vector<unsigned char> buffer(meshopt_encodeIndexBufferBound(index_count, vertex_count));
-	buffer.resize(meshopt_encodeIndexBuffer(&buffer[0], buffer.size(), kIndexBuffer, index_count));
+	buffer.resize(meshopt_encodeIndexBuffer(&buffer[0], buffer.size(), kIndexBuffer, index_count, 0));
 
 	// check that decode is memory-safe; note that we reallocate the buffer for each try to make sure ASAN can verify buffer access
 	unsigned int decoded[index_count];
@@ -119,7 +119,7 @@ static void decodeIndexRejectExtraBytes()
 	const size_t vertex_count = 10;
 
 	std::vector<unsigned char> buffer(meshopt_encodeIndexBufferBound(index_count, vertex_count));
-	buffer.resize(meshopt_encodeIndexBuffer(&buffer[0], buffer.size(), kIndexBuffer, index_count));
+	buffer.resize(meshopt_encodeIndexBuffer(&buffer[0], buffer.size(), kIndexBuffer, index_count, 0));
 
 	// check that decoder doesn't accept extra bytes after a valid stream
 	std::vector<unsigned char> largebuffer(buffer);
@@ -135,7 +135,7 @@ static void decodeIndexRejectMalformedHeaders()
 	const size_t vertex_count = 10;
 
 	std::vector<unsigned char> buffer(meshopt_encodeIndexBufferBound(index_count, vertex_count));
-	buffer.resize(meshopt_encodeIndexBuffer(&buffer[0], buffer.size(), kIndexBuffer, index_count));
+	buffer.resize(meshopt_encodeIndexBuffer(&buffer[0], buffer.size(), kIndexBuffer, index_count, 0));
 
 	// check that decoder doesn't accept malformed headers
 	std::vector<unsigned char> brokenbuffer(buffer);
@@ -161,13 +161,13 @@ static void encodeVertexMemorySafe()
 	const size_t vertex_count = sizeof(kVertexBuffer) / sizeof(kVertexBuffer[0]);
 
 	std::vector<unsigned char> buffer(meshopt_encodeVertexBufferBound(vertex_count, sizeof(PV)));
-	buffer.resize(meshopt_encodeVertexBuffer(&buffer[0], buffer.size(), kVertexBuffer, vertex_count, sizeof(PV)));
+	buffer.resize(meshopt_encodeVertexBuffer(&buffer[0], buffer.size(), kVertexBuffer, vertex_count, sizeof(PV), 0));
 
 	// check that encode is memory-safe; note that we reallocate the buffer for each try to make sure ASAN can verify buffer access
 	for (size_t i = 0; i <= buffer.size(); ++i)
 	{
 		std::vector<unsigned char> shortbuffer(i);
-		size_t result = meshopt_encodeVertexBuffer(i == 0 ? 0 : &shortbuffer[0], i, kVertexBuffer, vertex_count, sizeof(PV));
+		size_t result = meshopt_encodeVertexBuffer(i == 0 ? 0 : &shortbuffer[0], i, kVertexBuffer, vertex_count, sizeof(PV), 0);
 
 		if (i == buffer.size())
 			assert(result == buffer.size());
@@ -181,7 +181,7 @@ static void decodeVertexMemorySafe()
 	const size_t vertex_count = sizeof(kVertexBuffer) / sizeof(kVertexBuffer[0]);
 
 	std::vector<unsigned char> buffer(meshopt_encodeVertexBufferBound(vertex_count, sizeof(PV)));
-	buffer.resize(meshopt_encodeVertexBuffer(&buffer[0], buffer.size(), kVertexBuffer, vertex_count, sizeof(PV)));
+	buffer.resize(meshopt_encodeVertexBuffer(&buffer[0], buffer.size(), kVertexBuffer, vertex_count, sizeof(PV), 0));
 
 	// check that decode is memory-safe; note that we reallocate the buffer for each try to make sure ASAN can verify buffer access
 	PV decoded[vertex_count];
@@ -204,7 +204,7 @@ static void decodeVertexRejectExtraBytes()
 	const size_t vertex_count = sizeof(kVertexBuffer) / sizeof(kVertexBuffer[0]);
 
 	std::vector<unsigned char> buffer(meshopt_encodeVertexBufferBound(vertex_count, sizeof(PV)));
-	buffer.resize(meshopt_encodeVertexBuffer(&buffer[0], buffer.size(), kVertexBuffer, vertex_count, sizeof(PV)));
+	buffer.resize(meshopt_encodeVertexBuffer(&buffer[0], buffer.size(), kVertexBuffer, vertex_count, sizeof(PV), 0));
 
 	// check that decoder doesn't accept extra bytes after a valid stream
 	std::vector<unsigned char> largebuffer(buffer);
@@ -219,7 +219,7 @@ static void decodeVertexRejectMalformedHeaders()
 	const size_t vertex_count = sizeof(kVertexBuffer) / sizeof(kVertexBuffer[0]);
 
 	std::vector<unsigned char> buffer(meshopt_encodeVertexBufferBound(vertex_count, sizeof(PV)));
-	buffer.resize(meshopt_encodeVertexBuffer(&buffer[0], buffer.size(), kVertexBuffer, vertex_count, sizeof(PV)));
+	buffer.resize(meshopt_encodeVertexBuffer(&buffer[0], buffer.size(), kVertexBuffer, vertex_count, sizeof(PV), 0));
 
 	// check that decoder doesn't accept malformed headers
 	std::vector<unsigned char> brokenbuffer(buffer);
@@ -243,7 +243,7 @@ static void decodeVertexBitGroups()
 	}
 
 	std::vector<unsigned char> buffer(meshopt_encodeVertexBufferBound(16, 4));
-	buffer.resize(meshopt_encodeVertexBuffer(&buffer[0], buffer.size(), data, 16, 4));
+	buffer.resize(meshopt_encodeVertexBuffer(&buffer[0], buffer.size(), data, 16, 4, 0));
 
 	unsigned char decoded[16 * 4];
 	assert(meshopt_decodeVertexBuffer(decoded, 16, 4, &buffer[0], buffer.size()) == 0);
@@ -274,7 +274,7 @@ static void decodeVertexBitGroupSentinels()
 	}
 
 	std::vector<unsigned char> buffer(meshopt_encodeVertexBufferBound(16, 4));
-	buffer.resize(meshopt_encodeVertexBuffer(&buffer[0], buffer.size(), data, 16, 4));
+	buffer.resize(meshopt_encodeVertexBuffer(&buffer[0], buffer.size(), data, 16, 4, 0));
 
 	unsigned char decoded[16 * 4];
 	assert(meshopt_decodeVertexBuffer(decoded, 16, 4, &buffer[0], buffer.size()) == 0);
@@ -295,7 +295,7 @@ static void decodeVertexLarge()
 	}
 
 	std::vector<unsigned char> buffer(meshopt_encodeVertexBufferBound(128, 4));
-	buffer.resize(meshopt_encodeVertexBuffer(&buffer[0], buffer.size(), data, 128, 4));
+	buffer.resize(meshopt_encodeVertexBuffer(&buffer[0], buffer.size(), data, 128, 4, 0));
 
 	unsigned char decoded[128 * 4];
 	assert(meshopt_decodeVertexBuffer(decoded, 128, 4, &buffer[0], buffer.size()) == 0);

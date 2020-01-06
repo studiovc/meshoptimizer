@@ -202,11 +202,12 @@ static size_t sortTop16(unsigned char dest[16], size_t stats[256])
 
 } // namespace meshopt
 
-size_t meshopt_encodeIndexBuffer(unsigned char* buffer, size_t buffer_size, const unsigned int* indices, size_t index_count)
+size_t meshopt_encodeIndexBuffer(unsigned char* buffer, size_t buffer_size, const unsigned int* indices, size_t index_count, int version)
 {
 	using namespace meshopt;
 
 	assert(index_count % 3 == 0);
+	assert(unsigned(version) <= 1);
 
 #if TRACE
 	size_t codestats[256] = {};
@@ -217,7 +218,7 @@ size_t meshopt_encodeIndexBuffer(unsigned char* buffer, size_t buffer_size, cons
 	if (buffer_size < 1 + index_count / 3 + 16)
 		return 0;
 
-	buffer[0] = kIndexHeader;
+	buffer[0] = (unsigned char)(kIndexHeader | version);
 
 	EdgeFifo edgefifo;
 	memset(edgefifo, -1, sizeof(edgefifo));
@@ -413,7 +414,10 @@ int meshopt_decodeIndexBuffer(void* destination, size_t index_count, size_t inde
 	if (buffer_size < 1 + index_count / 3 + 16)
 		return -2;
 
-	if (buffer[0] != kIndexHeader)
+	if ((buffer[0] & 0xf0) != kIndexHeader)
+		return -1;
+
+	if ((buffer[0] & 0x0f) > 1)
 		return -1;
 
 	EdgeFifo edgefifo;
