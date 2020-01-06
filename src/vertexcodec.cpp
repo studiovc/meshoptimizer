@@ -418,12 +418,12 @@ static const unsigned char* decodeVertexBlock(const unsigned char* data, const u
 		}
 	}
 
+	memcpy(last_vertex, &transposed[vertex_size * (vertex_count - 1)], vertex_size);
+
 	if (filter)
 		filter(transposed, vertex_count, vertex_size);
 
 	memcpy(vertex_data, transposed, vertex_count * vertex_size);
-
-	memcpy(last_vertex, &transposed[vertex_size * (vertex_count - 1)], vertex_size);
 
 	return data;
 }
@@ -1041,12 +1041,12 @@ static const unsigned char* decodeVertexBlockSimd(const unsigned char* data, con
 		}
 	}
 
+	memcpy(last_vertex, &transposed[vertex_size * (vertex_count - 1)], vertex_size);
+
 	if (filter)
 		filter(transposed, vertex_count_aligned, vertex_size);
 
 	memcpy(vertex_data, transposed, vertex_count * vertex_size);
-
-	memcpy(last_vertex, &transposed[vertex_size * (vertex_count - 1)], vertex_size);
 
 	return data;
 }
@@ -1258,7 +1258,7 @@ void meshopt_decodeFilterReconstructZ(void* buffer, size_t vertex_count, size_t 
 	}
 	else
 	{
-		signed short* data = static_cast<signed short*>(buffer);
+		short* data = static_cast<short*>(buffer);
 
 		for (size_t i = 0; i < vertex_count; ++i)
 		{
@@ -1297,7 +1297,7 @@ void meshopt_decodeFilterReconstructW(void* buffer, size_t vertex_count, size_t 
 	}
 	else
 	{
-		signed short* data = static_cast<signed short*>(buffer);
+		short* data = static_cast<short*>(buffer);
 
 		for (size_t i = 0; i < vertex_count; ++i)
 		{
@@ -1313,3 +1313,20 @@ void meshopt_decodeFilterReconstructW(void* buffer, size_t vertex_count, size_t 
 		}
 	}
 }
+
+#ifdef EMSCRIPTEN
+extern "C" void (*meshopt_decodeFilter(int filter))(void*,size_t,size_t)
+{
+	switch (filter)
+	{
+		case 1:
+			return &meshopt_decodeFilterReconstructZ;
+
+		case 2:
+			return &meshopt_decodeFilterReconstructW;
+
+		default:
+			return 0;
+	}
+}
+#endif
