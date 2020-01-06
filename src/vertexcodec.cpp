@@ -1253,7 +1253,7 @@ void meshopt_decodeFilterReconstructZ(void* buffer, size_t vertex_count, size_t 
 			float z = sqrtf(zz >= 0.f ? zz : 0.f);
 			int zf = int(z * 127.f + 0.5f);
 
-			data[i * 4 + 2] = data[i * 4 + 2] ? -zf : zf;
+			data[i * 4 + 2] = (signed char)(data[i * 4 + 2] ? -zf : zf);
 		}
 	}
 	else
@@ -1269,7 +1269,7 @@ void meshopt_decodeFilterReconstructZ(void* buffer, size_t vertex_count, size_t 
 			float z = sqrtf(zz >= 0.f ? zz : 0.f);
 			int zf = int(z * 32767.f + 0.5f);
 
-			data[i * 4 + 2] = data[i * 4 + 2] ? -zf : zf;
+			data[i * 4 + 2] = short(data[i * 4 + 2] ? -zf : zf);
 		}
 	}
 }
@@ -1292,7 +1292,7 @@ void meshopt_decodeFilterReconstructW(void* buffer, size_t vertex_count, size_t 
 			float w = sqrtf(ww >= 0.f ? ww : 0.f);
 			int wf = int(w * 127.f + 0.5f);
 
-			data[i * 4 + 3] = data[i * 4 + 3] ? -wf : wf;
+			data[i * 4 + 3] = (signed char)(data[i * 4 + 3] ? -wf : wf);
 		}
 	}
 	else
@@ -1309,7 +1309,7 @@ void meshopt_decodeFilterReconstructW(void* buffer, size_t vertex_count, size_t 
 			float w = sqrtf(ww >= 0.f ? ww : 0.f);
 			int wf = int(w * 32767.f + 0.5f);
 
-			data[i * 4 + 3] = data[i * 4 + 3] ? -wf : wf;
+			data[i * 4 + 3] = short(data[i * 4 + 3] ? -wf : wf);
 		}
 	}
 }
