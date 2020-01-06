@@ -1197,7 +1197,8 @@ int meshopt_decodeVertexBuffer(void* destination, size_t vertex_count, size_t ve
 	if ((data[0] & 0xf0) != kVertexHeader)
 		return -1;
 
-	if ((data[0] & 0x0f) > 0)
+	int version = data[0] & 0x0f;
+	if (version > 0)
 		return -1;
 
 	data++;
