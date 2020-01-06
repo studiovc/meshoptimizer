@@ -227,9 +227,10 @@ void compute_metric(const State* state, const Mesh& mesh, float result[Profile_C
 		else
 		{
 			std::vector<unsigned char> ibuf(meshopt_encodeIndexBufferBound(indices.size(), mesh.vertex_count));
-			ibuf.resize(meshopt_encodeIndexBuffer(&ibuf[0], ibuf.size(), &indices[0], indices.size(), 0));
+			ibuf.resize(meshopt_encodeIndexBuffer(&ibuf[0], ibuf.size(), &indices[0], indices.size(), 1));
 
-			size_t csize = compress(ibuf);
+			// take into account both pre-deflate and post-deflate size but focus a bit more on post-deflate
+			size_t csize = ibuf.size() / 2 + compress(ibuf);
 
 			result[profile] = double(csize) / double(indices.size() / 3);
 		}
