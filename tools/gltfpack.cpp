@@ -139,14 +139,6 @@ struct QuantizationParams
 	int uv_bits;
 };
 
-struct StreamFormat
-{
-	cgltf_type type;
-	cgltf_component_type component_type;
-	bool normalized;
-	size_t stride;
-};
-
 struct NodeInfo
 {
 	bool keep;
@@ -192,14 +184,31 @@ struct BufferView
 		Kind_Count
 	};
 
+	enum Filter
+	{
+		Filter_None,
+		Filter_ReconstructZ,
+		Filter_ReconstructW,
+	};
+
 	Kind kind;
 	int variant;
 	size_t stride;
 	bool compressed;
+	Filter filter;
 
 	std::string data;
 
 	size_t bytes;
+};
+
+struct StreamFormat
+{
+	cgltf_type type;
+	cgltf_component_type component_type;
+	bool normalized;
+	size_t stride;
+	BufferView::Filter filter;
 };
 
 std::string getVersion()
@@ -1563,6 +1572,7 @@ StreamFormat writeVertexStream(std::string& bin, const Stream& stream, const Qua
 	{
 		bool unnormalized = settings.nrm_unnormalized && !has_targets;
 		int bits = unnormalized ? settings.nrm_bits : (settings.nrm_bits > 8 ? 16 : 8);
+		bool reconstruct = !unnormalized && stream.target == 0 && settings.compress;
 
 		for (size_t i = 0; i < stream.data.size(); ++i)
 		{
@@ -1578,7 +1588,7 @@ StreamFormat writeVertexStream(std::string& bin, const Stream& stream, const Qua
 				int16_t v[4] = {
 				    int16_t(meshopt_quantizeSnorm(nx, bits)),
 				    int16_t(meshopt_quantizeSnorm(ny, bits)),
-				    int16_t(meshopt_quantizeSnorm(nz, bits)),
+				    int16_t(reconstruct ? nz < 0.f : meshopt_quantizeSnorm(nz, bits)),
 				    0};
 				bin.append(reinterpret_cast<const char*>(v), sizeof(v));
 			}
@@ -1587,20 +1597,22 @@ StreamFormat writeVertexStream(std::string& bin, const Stream& stream, const Qua
 				int8_t v[4] = {
 				    int8_t(meshopt_quantizeSnorm(nx, bits)),
 				    int8_t(meshopt_quantizeSnorm(ny, bits)),
-				    int8_t(meshopt_quantizeSnorm(nz, bits)),
+				    int8_t(reconstruct ? nz < 0.f : meshopt_quantizeSnorm(nz, bits)),
 				    0};
 				bin.append(reinterpret_cast<const char*>(v), sizeof(v));
 			}
 		}
 
+		BufferView::Filter filter = reconstruct ? BufferView::Filter_ReconstructZ : BufferView::Filter_None;
+	
 		if (bits > 8)
 		{
-			StreamFormat format = {cgltf_type_vec3, cgltf_component_type_r_16, true, 8};
+			StreamFormat format = {cgltf_type_vec3, cgltf_component_type_r_16, true, 8, filter};
 			return format;
 		}
 		else
 		{
-			StreamFormat format = {cgltf_type_vec3, cgltf_component_type_r_8, true, 4};
+			StreamFormat format = {cgltf_type_vec3, cgltf_component_type_r_8, true, 4, filter};
 			return format;
 		}
 	}
@@ -1608,6 +1620,7 @@ StreamFormat writeVertexStream(std::string& bin, const Stream& stream, const Qua
 	{
 		bool unnormalized = settings.nrm_unnormalized && !has_targets;
 		int bits = unnormalized ? settings.nrm_bits : (settings.nrm_bits > 8 ? 16 : 8);
+		bool reconstruct = !unnormalized && stream.target == 0 && settings.compress;
 
 		for (size_t i = 0; i < stream.data.size(); ++i)
 		{
@@ -1623,7 +1636,7 @@ StreamFormat writeVertexStream(std::string& bin, const Stream& stream, const Qua
 				int16_t v[4] = {
 				    int16_t(meshopt_quantizeSnorm(nx, bits)),
 				    int16_t(meshopt_quantizeSnorm(ny, bits)),
-				    int16_t(meshopt_quantizeSnorm(nz, bits)),
+				    int16_t(settings.compress ? nz < 0.f : meshopt_quantizeSnorm(nz, bits)),
 				    int16_t(meshopt_quantizeSnorm(nw, 8))};
 				bin.append(reinterpret_cast<const char*>(v), sizeof(v));
 			}
@@ -1632,22 +1645,23 @@ StreamFormat writeVertexStream(std::string& bin, const Stream& stream, const Qua
 				int8_t v[4] = {
 				    int8_t(meshopt_quantizeSnorm(nx, bits)),
 				    int8_t(meshopt_quantizeSnorm(ny, bits)),
-				    int8_t(meshopt_quantizeSnorm(nz, bits)),
+				    int8_t(settings.compress ? nz < 0.f : meshopt_quantizeSnorm(nz, bits)),
 				    int8_t(meshopt_quantizeSnorm(nw, 8))};
 				bin.append(reinterpret_cast<const char*>(v), sizeof(v));
 			}
 		}
 
 		cgltf_type type = (stream.target == 0) ? cgltf_type_vec4 : cgltf_type_vec3;
+		BufferView::Filter filter = reconstruct ? BufferView::Filter_ReconstructZ : BufferView::Filter_None;
 
 		if (bits > 8)
 		{
-			StreamFormat format = {type, cgltf_component_type_r_16, true, 8};
+			StreamFormat format = {type, cgltf_component_type_r_16, true, 8, filter};
 			return format;
 		}
 		else
 		{
-			StreamFormat format = {type, cgltf_component_type_r_8, true, 4};
+			StreamFormat format = {type, cgltf_component_type_r_8, true, 4, filter};
 			return format;
 		}
 	}
@@ -1836,10 +1850,12 @@ StreamFormat writeTimeStream(std::string& bin, const std::vector<float>& data)
 	return format;
 }
 
-StreamFormat writeKeyframeStream(std::string& bin, cgltf_animation_path_type type, const std::vector<Attr>& data)
+StreamFormat writeKeyframeStream(std::string& bin, cgltf_animation_path_type type, const std::vector<Attr>& data, const Settings& settings)
 {
 	if (type == cgltf_animation_path_type_rotation)
 	{
+		bool reconstruct = settings.compress;
+
 		for (size_t i = 0; i < data.size(); ++i)
 		{
 			const Attr& a = data[i];
@@ -1848,12 +1864,15 @@ StreamFormat writeKeyframeStream(std::string& bin, cgltf_animation_path_type typ
 			    int16_t(meshopt_quantizeSnorm(a.f[0], 16)),
 			    int16_t(meshopt_quantizeSnorm(a.f[1], 16)),
 			    int16_t(meshopt_quantizeSnorm(a.f[2], 16)),
-			    int16_t(meshopt_quantizeSnorm(a.f[3], 16)),
+			    int16_t(reconstruct ? a.f[3] < 0.f : meshopt_quantizeSnorm(a.f[3], 16)),
 			};
+
 			bin.append(reinterpret_cast<const char*>(v), sizeof(v));
 		}
 
-		StreamFormat format = {cgltf_type_vec4, cgltf_component_type_r_16, true, 8};
+		BufferView::Filter filter = reconstruct ? BufferView::Filter_ReconstructW : BufferView::Filter_None;
+
+		StreamFormat format = {cgltf_type_vec4, cgltf_component_type_r_16, true, 8, filter};
 		return format;
 	}
 	else if (type == cgltf_animation_path_type_weights)
@@ -2280,22 +2299,22 @@ void writeMaterialInfo(std::string& json, const cgltf_data* data, const cgltf_ma
 	}
 }
 
-size_t getBufferView(std::vector<BufferView>& views, BufferView::Kind kind, int variant, size_t stride, bool compressed)
+size_t getBufferView(std::vector<BufferView>& views, BufferView::Kind kind, int variant, size_t stride, bool compressed, BufferView::Filter filter)
 {
 	if (variant >= 0)
 	{
 		for (size_t i = 0; i < views.size(); ++i)
-			if (views[i].kind == kind && views[i].variant == variant && views[i].stride == stride && views[i].compressed == compressed)
+			if (views[i].kind == kind && views[i].variant == variant && views[i].stride == stride && views[i].compressed == compressed && views[i].filter == filter)
 				return i;
 	}
 
-	BufferView view = {kind, variant, stride, compressed};
+	BufferView view = {kind, variant, stride, compressed, filter};
 	views.push_back(view);
 
 	return views.size() - 1;
 }
 
-void writeBufferView(std::string& json, BufferView::Kind kind, size_t count, size_t stride, size_t bin_offset, size_t bin_size, int compression, size_t compressed_offset, size_t compressed_size)
+void writeBufferView(std::string& json, BufferView::Kind kind, size_t count, size_t stride, size_t bin_offset, size_t bin_size, int compression, BufferView::Filter filter, size_t compressed_offset, size_t compressed_size)
 {
 	assert(bin_size == count * stride);
 
@@ -2332,6 +2351,11 @@ void writeBufferView(std::string& json, BufferView::Kind kind, size_t count, siz
 		append(json, stride);
 		append(json, ",\"mode\":");
 		append(json, size_t(compression));
+		if (filter != BufferView::Filter_None)
+		{
+			append(json, ",\"filter\":");
+			append(json, size_t(filter));
+		}
 		append(json, ",\"count\":");
 		append(json, count);
 		append(json, "}}");
@@ -2895,7 +2919,7 @@ bool parseDataUri(const char* uri, std::string& mime_type, std::string& result)
 
 void writeEmbeddedImage(std::string& json, std::vector<BufferView>& views, const char* data, size_t size, const char* mime_type)
 {
-	size_t view = getBufferView(views, BufferView::Kind_Image, -1, 1, false);
+	size_t view = getBufferView(views, BufferView::Kind_Image, -1, 1, false, BufferView::Filter_None);
 
 	assert(views[view].data.empty());
 	views[view].data.assign(data, size);
@@ -3219,7 +3243,7 @@ void writeMeshAttributes(std::string& json, std::vector<BufferView>& views, std:
 		scratch.clear();
 		StreamFormat format = writeVertexStream(scratch, stream, qp, settings, mesh.targets > 0);
 
-		size_t view = getBufferView(views, BufferView::Kind_Vertex, stream.type, format.stride, settings.compress);
+		size_t view = getBufferView(views, BufferView::Kind_Vertex, stream.type, format.stride, settings.compress, format.filter);
 		size_t offset = views[view].data.size();
 		views[view].data += scratch;
 
@@ -3260,7 +3284,7 @@ size_t writeMeshIndices(std::vector<BufferView>& views, std::string& json_access
 	std::string scratch;
 	StreamFormat format = writeIndexStream(scratch, mesh.indices);
 
-	size_t view = getBufferView(views, BufferView::Kind_Index, 0, format.stride, settings.compress);
+	size_t view = getBufferView(views, BufferView::Kind_Index, 0, format.stride, settings.compress, format.filter);
 	size_t offset = views[view].data.size();
 	views[view].data += scratch;
 
@@ -3282,7 +3306,7 @@ size_t writeAnimationTime(std::vector<BufferView>& views, std::string& json_acce
 	std::string scratch;
 	StreamFormat format = writeTimeStream(scratch, time);
 
-	size_t view = getBufferView(views, BufferView::Kind_Time, 0, format.stride, settings.compress);
+	size_t view = getBufferView(views, BufferView::Kind_Time, 0, format.stride, settings.compress, format.filter);
 	size_t offset = views[view].data.size();
 	views[view].data += scratch;
 
@@ -3321,7 +3345,7 @@ size_t writeJointBindMatrices(std::vector<BufferView>& views, std::string& json_
 		scratch.append(reinterpret_cast<const char*>(transform), sizeof(transform));
 	}
 
-	size_t view = getBufferView(views, BufferView::Kind_Skin, 0, 64, settings.compress);
+	size_t view = getBufferView(views, BufferView::Kind_Skin, 0, 64, settings.compress, BufferView::Filter_None);
 	size_t offset = views[view].data.size();
 	views[view].data += scratch;
 
@@ -3521,9 +3545,9 @@ void writeAnimation(std::string& json, std::vector<BufferView>& views, std::stri
 		bool tc = track.data.size() == track.components;
 
 		std::string scratch;
-		StreamFormat format = writeKeyframeStream(scratch, track.path, track.data);
+		StreamFormat format = writeKeyframeStream(scratch, track.path, track.data, settings);
 
-		size_t view = getBufferView(views, BufferView::Kind_Keyframe, track.path, format.stride, settings.compress && track.path != cgltf_animation_path_type_weights);
+		size_t view = getBufferView(views, BufferView::Kind_Keyframe, track.path, format.stride, settings.compress && track.path != cgltf_animation_path_type_weights, format.filter);
 		size_t offset = views[view].data.size();
 		views[view].data += scratch;
 
@@ -3741,7 +3765,7 @@ void finalizeBufferViews(std::string& json, std::vector<BufferView>& views, std:
 		size_t raw_offset = (compression >= 0) ? fallback_offset : bin_offset;
 
 		comma(json);
-		writeBufferView(json, view.kind, count, view.stride, raw_offset, view.data.size(), compression, bin_offset, bin.size() - bin_offset);
+		writeBufferView(json, view.kind, count, view.stride, raw_offset, view.data.size(), compression, view.filter, bin_offset, bin.size() - bin_offset);
 
 		// record written bytes for statistics
 		view.bytes = bin.size() - bin_offset;
