@@ -1133,7 +1133,10 @@ void optimizeMesh(Mesh& mesh, bool compress)
 
 	size_t vertex_count = mesh.streams[0].data.size();
 
-	meshopt_optimizeVertexCache(&mesh.indices[0], &mesh.indices[0], mesh.indices.size(), vertex_count);
+	if (compress)
+		meshopt_optimizeVertexCacheStrip(&mesh.indices[0], &mesh.indices[0], mesh.indices.size(), vertex_count);
+	else
+		meshopt_optimizeVertexCache(&mesh.indices[0], &mesh.indices[0], mesh.indices.size(), vertex_count);
 
 	std::vector<unsigned int> remap(vertex_count);
 	size_t unique_vertices = meshopt_optimizeVertexFetchRemap(&remap[0], &mesh.indices[0], mesh.indices.size(), vertex_count);
@@ -1914,13 +1917,15 @@ void compressIndexStream(std::string& bin, const std::string& data, size_t count
 	assert(stride == 2 || stride == 4);
 	assert(data.size() == count * stride);
 
+	int version = 1;
+
 	std::vector<unsigned char> compressed(meshopt_encodeIndexBufferBound(count, count * 3));
 	size_t size = 0;
 
 	if (stride == 2)
-		size = meshopt_encodeIndexBuffer(&compressed[0], compressed.size(), reinterpret_cast<const uint16_t*>(data.c_str()), count, 0);
+		size = meshopt_encodeIndexBuffer(&compressed[0], compressed.size(), reinterpret_cast<const uint16_t*>(data.c_str()), count, version);
 	else
-		size = meshopt_encodeIndexBuffer(&compressed[0], compressed.size(), reinterpret_cast<const uint32_t*>(data.c_str()), count, 0);
+		size = meshopt_encodeIndexBuffer(&compressed[0], compressed.size(), reinterpret_cast<const uint32_t*>(data.c_str()), count, version);
 
 	bin.append(reinterpret_cast<const char*>(&compressed[0]), size);
 }
