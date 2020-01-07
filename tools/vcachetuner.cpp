@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <ctime>
 
 const int kCacheSizeMax = 16;
 const int kValenceMax = 8;
@@ -344,8 +345,9 @@ bool accept(float fitnew, float fitold, float temp)
 
 std::vector<State> gen0(size_t count, const std::vector<Mesh>& meshes)
 {
-	std::vector<State> result;
+	std::vector<State> result(count);
 
+#pragma omp parallel for
 	for (size_t i = 0; i < count; ++i)
 	{
 		State state = {};
@@ -358,7 +360,7 @@ std::vector<State> gen0(size_t count, const std::vector<Mesh>& meshes)
 
 		state.fitness = fitness_score(state, meshes);
 
-		result.push_back(state);
+		result[i] = state;
 	}
 
 	return result;
@@ -562,7 +564,7 @@ std::pair<State, float> genN_DE(std::vector<State>& seed, const std::vector<Mesh
 		}
 	}
 
-	#pragma omp parallel for
+#pragma omp parallel for
 	for (size_t i = 0; i < seed.size(); ++i)
 	{
 		result[i].fitness = fitness_score(result[i], meshes);
@@ -688,7 +690,7 @@ int main(int argc, char** argv)
 	else if (strcmp(argv[1], "DE") == 0)
 	{
 		algorithm = DE;
-		seeds = 95;
+		seeds = 300;
 	}
 	else
 	{
@@ -725,6 +727,8 @@ int main(int argc, char** argv)
 
 	printf("%d meshes, %.1fM triangles\n", int(meshes.size()), double(total_triangles) / 1e6);
 
+	time_t start_time = time(0);
+
 	for (;;)
 	{
 		std::pair<State, float> best;
@@ -744,12 +748,15 @@ int main(int argc, char** argv)
 			break;
 		}
 
+		double elapsed = difftime(time(0), start_time);
+
 		gen++;
 
 		if (gen % 10 == 0)
 		{
 			printf("%s: %d: fitness %f;", argv[1], int(gen), best.second);
 			dump_stats(best.first, meshes);
+			printf("checkpoint\t%f\t%f\n", elapsed / 60, best.second);
 		}
 		else
 		{
